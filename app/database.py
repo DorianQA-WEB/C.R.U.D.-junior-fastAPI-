@@ -3,7 +3,7 @@ from sqlalchemy.orm import sessionmaker, DeclarativeBase
 
 
 # Строка подключения для SQLite
-DATABASE_URL = "sqlite:////./crudjunior.db"
+DATABASE_URL = "sqlite:///crudjunior.db"
 
 
 # Создаём Engine
