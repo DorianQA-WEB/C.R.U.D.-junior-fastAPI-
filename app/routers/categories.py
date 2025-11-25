@@ -1,10 +1,11 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
 from sqlalchemy import select, update
 
 from app.models.categories import Category as CategoryModel
 from app.schemas import CategoryResponse, CategoryCreate
-from app.db_depends import get_db
+
+from sqlalchemy.ext.asyncio import AsyncSession
+from app.db_depends import get_async_db
 
 
 # Создаём маршрутизатор с префиксом и тегом
@@ -15,24 +16,27 @@ router = APIRouter(
 
 
 @router.get("/", response_model=list[CategoryResponse])
-async def get_all_categories(db: Session = Depends(get_db)):
+async def get_all_categories(db: AsyncSession = Depends(get_async_db)):
     """
     Возвращает список всех активных категорий.
     """
     stmt = select(CategoryModel).where(CategoryModel.is_active == True)
-    categories = db.scalars(stmt).all()
+    result = await db.scalars(stmt)
+    categories = result.all()
+
     return categories
 
 
 @router.post("/", response_model=CategoryResponse, status_code=status.HTTP_201_CREATED)
-async def create_category(category: CategoryCreate, db: Session = Depends(get_db)):
+async def create_category(category: CategoryCreate, db: AsyncSession = Depends(get_async_db)):
     """
     Создаёт новую категорию.
     """
     if category.parent_id is not None:
         stmt = select(CategoryModel).where(CategoryModel.id == category.parent_id,
                                            CategoryModel.is_active == True)
-        parent = db.scalars(stmt).first()
+        result = await db.scalars(stmt)
+        parent = result.first()
         if parent is None:
             raise HTTPException(
                 status_code=400,
@@ -41,48 +45,51 @@ async def create_category(category: CategoryCreate, db: Session = Depends(get_db
     # Создание новой категории
     db_category = CategoryModel(**category.model_dump())
     db.add(db_category)
-    db.commit()
-    db.refresh(db_category)
+    await db.commit()
     return db_category
 
 @router.put("/{category_id}", response_model=CategoryResponse)
-async def update_category(category_id: int, category: CategoryCreate, db: Session = Depends(get_db)):
+async def update_category(category_id: int, category: CategoryCreate, db: AsyncSession = Depends(get_async_db)):
     """
     Обновляет категорию по её ID.
     """
     stmt = select(CategoryModel).where(CategoryModel.id == category_id,
                                        CategoryModel.is_active == True)
-    db_category = db.scalars(stmt).first()
+    result = await db.scalars(stmt)
+    db_category = result.first()
     if db_category is None:
         raise HTTPException(status_code=404, detail="Category not found")
 
     if category.parent_id is not None:
         parent_stmt = select(CategoryModel).where(CategoryModel.id == db_category.parent_id,
                                                   CategoryModel.is_active == True)
-        parent = db.scalars(parent_stmt).first()
+        result = await db.scalars(parent_stmt)
+        parent = result.first()
         if parent is None:
             raise HTTPException(status_code=400, detail="Parent category not found")
 
-    db.execute(
+    # Обновляем категорию
+    update_data = category.model_dump(exclude_unset=True)
+    await db.execute(
         update(CategoryModel)
         .where(CategoryModel.id == category_id)
-        .values(**category.model_dump())
+        .values(**update_data)
     )
-    db.commit()
-    db.refresh(db_category)
+    await db.commit()
     return db_category
 
 @router.delete("/{category_id}", status_code=status.HTTP_200_OK)
-async def delete_category(category_id: int, db: Session = Depends(get_db)):
+async def delete_category(category_id: int, db: AsyncSession = Depends(get_async_db)):
     """
     Логически удаляет категорию по её ID, устанавливая is_active=False.
     """
     stmt = select(CategoryModel).where(CategoryModel.id == category_id)
-    category = db.scalars(stmt).first()
+    result = await db.scalars(stmt)
+    category = result.first()
     if category == None:
         raise HTTPException(status_code=404, detail="Category not found")
-    db.execute(update(CategoryModel).where(CategoryModel.id == category_id).values(is_active=False))
-    db.commit()
+    await db.execute(update(CategoryModel).where(CategoryModel.id == category_id).values(is_active=False))
+    await db.commit()
 
     return {'status': 'success', 'message': 'Category marked as inactive'}
 
