@@ -9,6 +9,9 @@ from app.schemas import ProductResponse, ProductCreate
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.db_depends import get_async_db
 
+from app.models.users import User as UserModel
+from app.auth import get_current_seller
+
 
 # Создаём маршрутизатор для товаров
 router = APIRouter(
@@ -74,30 +77,35 @@ async def get_product(product_id: int, db: AsyncSession = Depends(get_async_db))
     return product
 
 @router.post('/', response_model=ProductResponse, status_code=status.HTTP_201_CREATED)
-async def create_product(product: ProductCreate, db: AsyncSession = Depends(get_async_db)):
+async def create_product(
+        product: ProductCreate,
+        db: AsyncSession = Depends(get_async_db),
+        current_user: UserModel = Depends(get_current_seller)):
     """
-    Создаёт новый товар.
+    Создаёт новый товар, привязанный к текущему продавцу (только для 'seller').
     """
     # Проверяем, существует ли активная категория
 
-    result = await db.scalars(
+    category_result = await db.scalars(
         select(CategoryModel).where(CategoryModel.id == product.category_id,
                                     CategoryModel.is_active == True)
     )
-    category = result.first()
-    if not category:
+    if not category_result.first():
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
                             detail="Category not found or inactive")
 
     # Создаём товар
-    db_product = ProductModel(**product.model_dump())
+    db_product = ProductModel(**product.model_dump(), seller_id=current_user.id)
     db.add(db_product)
     await db.commit()
-    await db.refresh(db_product)
+    await db.refresh(db_product) # Для получения id и is_active из базы
     return db_product
 
 @router.put('/{product_id}', status_code=status.HTTP_200_OK, response_model=ProductResponse)
-async def update_product(product_id: int, product: ProductCreate, db: AsyncSession = Depends(get_async_db)):
+async def update_product(
+        product_id: int, product: ProductCreate,
+        db: AsyncSession = Depends(get_async_db),
+        current_user: UserModel = Depends(get_current_seller)):
     """
     Обновляет информацию о товаре по его ID.
     """
@@ -108,13 +116,14 @@ async def update_product(product_id: int, product: ProductCreate, db: AsyncSessi
     db_product = result.first()
     if not db_product:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Product not found")
+    if db_product.seller_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You can only update your own products")
     # Проверяем, существует ли активная категория
-    result = await db.scalars(
+    category_result = await db.scalars(
         select(CategoryModel).where(CategoryModel.id == product.category_id,
                                     CategoryModel.is_active == True)
     )
-    category = result.first()
-    if not category:
+    if not category_result.first():
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Category not found or inactive")
 
     # Обновляем товар
@@ -126,9 +135,12 @@ async def update_product(product_id: int, product: ProductCreate, db: AsyncSessi
     return db_product
 
 @router.delete('/{product_id}', status_code=status.HTTP_200_OK)
-async def delete_product(product_id: int, db: AsyncSession = Depends(get_async_db)):
+async def delete_product(
+        product_id: int,
+        db: AsyncSession = Depends(get_async_db),
+        current_user: UserModel = Depends(get_current_seller)):
     """
-    Удаляет товар по его ID.
+    Выполняет мягкое удаление товара, если он принадлежит текущему продавцу (только для 'seller').
     """
     # Проверяем, существует ли активный товар
 
@@ -141,9 +153,15 @@ async def delete_product(product_id: int, db: AsyncSession = Depends(get_async_d
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Product not found or inactive"
         )
+    if product.seller_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You can only delete your own products"
+        )
     # Изменяем объект устанавив is_active=False и сохраняем
     await db.execute(
         update(ProductModel).where(ProductModel.id == product_id).values(is_active=False)
     )
     await db.commit()
-    return {"status": "success", "message": "Product marked as inactive"}
+    await db.refresh(product)
+    return product
