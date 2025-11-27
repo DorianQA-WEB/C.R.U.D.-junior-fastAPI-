@@ -70,3 +70,18 @@ class UserResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+class ReviewCreate(BaseModel):
+    product_id: int = Field(description="ID товара, к которому оставляется отзыв")
+    comment: str | None = Field(None, max_length=555, description="Текст отзыва (не более 555 символов)")
+    grade: int = Field(ge=1, le=5, description="Оценка товара (1-5)")
+
+class ReviewResponse(BaseModel):
+
+    id: int = Field(description="ID отзыва")
+    product_id: int = Field(description="ID товара, к которому оставлен отзыв")
+    comment: str | None = Field(None, description="Текст отзыва")
+    grade: int = Field(description="Оценка товара")
+    is_active: bool = Field(description="Активен ли отзыв")
+    rating: float | None = None
+
+    model_config = ConfigDict(from_attributes=True)
