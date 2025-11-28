@@ -1,6 +1,7 @@
 from sqlalchemy import String, Boolean, Integer, Numeric, ForeignKey, text
 from decimal import Decimal
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.dialects.postgresql import TSVECTOR
 from typing import List, TYPE_CHECKING
 from app.database import Base
 if TYPE_CHECKING:
@@ -32,6 +33,8 @@ class Product(Base):
     rating: Mapped[float | None] = mapped_column(Numeric(2, 1), nullable=True, server_default=text("0"))
     # Связь с продавцом
     seller: Mapped['User'] = relationship("User", back_populates="products")
+
+
 
 
 

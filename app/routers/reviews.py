@@ -12,13 +12,32 @@ from app.models import Product as ProductModel
 
 router = APIRouter(prefix="/reviews", tags=["reviews"])
 
+async def recalculate_product_rating(db: AsyncSession, product_id: int):
+    """
+    Пересчитывает средний рейтинг товара на основе активных отзывов.
+    """
+    result = await db.execute(
+        select(func.avg(ReviewsModel.grade))
+        .where(ReviewsModel.product_id == product_id, ReviewsModel.is_active == True)
+    )
+    avg_rating = result.scalar()
+
+    new_rating = float(avg_rating) if avg_rating is not None else 0.0
+
+    await db.execute(
+        update(ProductModel)
+        .where(ProductModel.id == product_id)
+        .values(rating=new_rating)  # Убедитесь, что поле называется `rating`, а не `ratting`
+    )
+    await db.commit()
+
 
 @router.get("/", response_model=list[ReviewResponse], status_code=status.HTTP_200_OK)
 async def get_reviews(db: AsyncSession = Depends(get_async_db)):
     """
     Возвращает список всех отзывов.
     """
-    result = await db.scalars(select(ReviewsModel).where(ReviewsModel.id == reviews.id, ReviewsModel.is_active == True))
+    result = await db.scalars(select(ReviewsModel).where(ReviewsModel.is_active == True))
     return result.all()
 
 @router.get("/product/{product_id}/reviews", response_model=list[ReviewResponse], status_code=status.HTTP_200_OK)
@@ -67,25 +86,6 @@ async def create_review(review_data: ReviewCreate,
     await recalculate_product_rating(db, review_data.product_id)
     return db_review
 
-
-async def recalculate_product_rating(db: AsyncSession, product_id: int):
-    """
-    Пересчитывает средний рейтинг товара на основе активных отзывов.
-    """
-    result = await db.execute(
-        select(func.avg(ReviewsModel.grade))
-        .where(ReviewsModel.product_id == product_id, ReviewsModel.is_active == True)
-    )
-    avg_rating = result.scalar()
-
-    new_rating = float(avg_rating) if avg_rating is not None else 0.0
-
-    await db.execute(
-        update(ProductModel)
-        .where(ProductModel.id == product_id)
-        .values(rating=new_rating)  # Убедитесь, что поле называется `rating`, а не `ratting`
-    )
-    await db.commit()
 
 @router.delete("/{review_id}", status_code=status.HTTP_200_OK)
 async def delete_review(review_id: int,
