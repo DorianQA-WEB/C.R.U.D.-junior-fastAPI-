@@ -1,4 +1,4 @@
-from sqlalchemy import String, Boolean, Integer, Numeric, ForeignKey, text
+from sqlalchemy import String, Boolean, Integer, Numeric, ForeignKey, text, Computed, Index
 from decimal import Decimal
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.dialects.postgresql import TSVECTOR
@@ -24,6 +24,19 @@ class Product(Base):
     category_id: Mapped[int] = mapped_column(ForeignKey("categories.id"), nullable=False)
     seller_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
 
+    tsv: Mapped[TSVECTOR] = mapped_column(
+        TSVECTOR,
+        Computed(
+            """
+            setweight(to_tsvector('english', coalesce(name, '')), 'A')
+            || 
+            setweight(to_tsvector('english', coalesce(description, '')), 'B')
+            """,
+            persisted=True,
+        ),
+        nullable=False,
+    )
+
     # Связь с категорией
     category : Mapped['Category'] = relationship(back_populates="products")
     # Связь с отзывами
@@ -33,6 +46,14 @@ class Product(Base):
     rating: Mapped[float | None] = mapped_column(Numeric(2, 1), nullable=True, server_default=text("0"))
     # Связь с продавцом
     seller: Mapped['User'] = relationship("User", back_populates="products")
+
+    __table_args__ = (
+        Index("ix_product_tsv_gin", "tsv", postgresql_using="gin"),
+    )
+    cart_items: Mapped[list['CartItem']] = relationship('CartItem', back_populates='product',
+                                                         cascade='all, delete-orphan')
+
+
 
 
 

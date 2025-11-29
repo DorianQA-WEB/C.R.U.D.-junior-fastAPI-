@@ -96,3 +96,35 @@ class ProductList(BaseModel):
     page_size: int = Field(ge=1, description="Количество элементов на странице")
 
     model_config = ConfigDict(from_attributes=True) # Для чтения из ORM-объектов
+
+
+class CartItemBase(BaseModel):
+    product_id: int = Field(description="ID товара")
+    quantity: int = Field(ge=1, description="Количество товара")
+
+
+class CartItemCreate(CartItemBase):
+    """Модель для добавления нового товара в корзину."""
+    pass
+
+
+class CartItemUpdate(BaseModel):
+    """Модель для обновления количества товара в корзине."""
+    quantity: int = Field(..., ge=1, description="Новое количество товара")
+
+class CartItem(BaseModel):
+    """Товар в корзине с данными продукта."""
+    id: int = Field(..., description="ID позиции корзины")
+    quantity: int = Field(..., description="Количество товара")
+    product: ProductResponse = Field(..., description="Информация о товаре")
+
+    model_config = ConfigDict(from_attributes=True)
+
+class CartResponse(BaseModel):
+    """Полная информация о корзине пользователя."""
+    user_id: int = Field(..., description="ID пользователя")
+    items: list[CartItem] = Field(..., description="Содержимое корзины")
+    total_quantity: int = Field(..., ge=0, description="Общее количество товаров в корзине")
+    total_price: Decimal = Field(..., ge=0, description="Общая стоимость товаров в корзине")
+
+    model_config = ConfigDict(from_attributes=True)
