@@ -34,8 +34,9 @@ async def _ensure_product_available(db: AsyncSession, product_id: int) -> None:
 
 async def _get_cart_item(
         db: AsyncSession,
+        user_id: int,
         product_id: int,
-        user_id: int) -> CartItemModel | None:
+        ) -> CartItemModel | None:
     result = await db.scalars(
         select(CartItemModel)
         .options(selectinload(CartItemModel.product))
@@ -80,7 +81,7 @@ async def add_item_to_cart(
         current_user: UserModel = Depends(get_current_user)):
     await _ensure_product_available(db, payload.product_id)
 
-    cart_item = await _get_cart_item(db, payload.product_id, current_user.id)
+    cart_item = await _get_cart_item(db,  current_user.id, payload.product_id)
     if cart_item:
         cart_item.quantity += payload.quantity
     else:
@@ -92,7 +93,7 @@ async def add_item_to_cart(
         db.add(cart_item)
 
     await db.commit()
-    updated_item = await _get_cart_item(db, cart_item.id, payload.product_id)
+    updated_item = await _get_cart_item(db, current_user.id, payload.product_id)
     return updated_item
 
 
@@ -104,7 +105,7 @@ async def update_cart_item(
         current_user: UserModel = Depends(get_current_user)):
     await _ensure_product_available(db, product_id)
 
-    cart_item = await _get_cart_item(db, product_id, current_user.id)
+    cart_item = await _get_cart_item(db, current_user.id, product_id,)
     if not cart_item:
         raise HTTPException(
                 status_code=404,
@@ -113,7 +114,7 @@ async def update_cart_item(
 
     cart_item.quantity = payload.quantity
     await db.commit()
-    updated_item = await _get_cart_item(db, cart_item.id, product_id)
+    updated_item = await _get_cart_item(db, current_user.id, product_id)
     return updated_item
 
 
@@ -122,7 +123,7 @@ async def remove_item_from_cart(
         product_id: int,
         db: AsyncSession = Depends(get_async_db),
         current_user: UserModel = Depends(get_current_user)):
-    cart_item = await _get_cart_item(db, product_id, current_user.id)
+    cart_item = await _get_cart_item(db, current_user.id, product_id)
     if not cart_item:
         raise HTTPException(
                 status_code=404,
