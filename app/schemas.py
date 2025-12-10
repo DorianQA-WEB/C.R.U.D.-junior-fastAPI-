@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from pydantic import BaseModel, Field, ConfigDict, EmailStr
 from decimal import Decimal
 
@@ -126,5 +128,39 @@ class CartResponse(BaseModel):
     items: list[CartItem] = Field(..., description="Содержимое корзины")
     total_quantity: int = Field(..., ge=0, description="Общее количество товаров в корзине")
     total_price: Decimal = Field(..., ge=0, description="Общая стоимость товаров в корзине")
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class OrderItem(BaseModel):
+    '''Модель для позиции заказа'''
+    id: int = Field(..., description="ID позиции заказа")
+    product_id: int = Field(..., description="ID товара")
+    quantity: int = Field(..., ge=1, description="Количество")
+    unit_price: Decimal = Field(..., ge=0, description="Цена за единицу товара на момент покупки")
+    total_price: Decimal = Field(..., ge=0, description="Полная стоимость позиции")
+    product: ProductResponse | None = Field(..., description="Полная информация о товаре")
+
+    model_config = ConfigDict(from_attributes=True)
+
+class OrderResponse(BaseModel):
+    '''Модель для заказа'''
+    id: int = Field(..., description='ID заказа')
+    user_id: int = Field(..., description='ID пользователя')
+    status: str = Field(..., description='Текущий статус заказа')
+    total_amount: Decimal = Field(..., ge=0, description="Общая стоимость заказа")
+    created_at: datetime = Field(..., description="Дата создания заказа")
+    updated_at: datetime = Field(..., description="Дата обновления заказа")
+    items: list[OrderItem] = Field(..., description="Список товаров в заказе")
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class OrderList(BaseModel):
+    '''Модель для списка заказов'''
+    items: list[OrderResponse] = Field(..., description="Заказы на текущей странице")
+    total: int = Field(ge=0, description="Общее количество заказов")
+    page: int = Field(ge=1, description="Текущая страница")
+    page_size: int = Field(ge=1, description="Количество элементов на странице")
 
     model_config = ConfigDict(from_attributes=True)
