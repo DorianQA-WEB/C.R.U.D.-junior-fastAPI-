@@ -225,7 +225,7 @@ async def create_product(
     # Создаём товар
     db_product = ProductModel(**product.model_dump(),
                               seller_id=current_user.id,
-                              image=image_url,
+                              image_url=image_url,
                               )
     db.add(db_product)
     await db.commit()

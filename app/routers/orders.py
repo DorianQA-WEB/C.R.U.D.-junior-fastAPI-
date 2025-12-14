@@ -88,9 +88,9 @@ async def checkout_order(
     return created_order
 
 @router.get("/", response_model=OrderList)
-async def get_orders(
+async def list_orders(
         page: int = Query(1, ge=1),
-        page_size: int = Query(10, le=100),
+        page_size: int = Query(10, ge=1, le=100),
         db: AsyncSession = Depends(get_async_db),
         current_user: UserModel = Depends(get_current_user)
 ):

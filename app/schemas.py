@@ -1,11 +1,11 @@
 from datetime import datetime
-from typing import Optional, List
+from typing import Optional
 
 from fastapi import Form
 from pydantic import BaseModel, Field, ConfigDict, EmailStr
 from decimal import Decimal
 
-from sqlalchemy.sql.annotation import Annotated
+from typing import Annotated
 
 
 class CategoryCreate(BaseModel):
@@ -113,7 +113,7 @@ class ProductList(BaseModel):
     """
     Список пагинации для товаров.
     """
-    items: List[ProductResponse] = Field(description="Товары для текущей страницы")
+    items: list[ProductResponse] = Field(description="Товары для текущей страницы")
     total: int = Field(ge=0, description="Общее количество товаров")
     page: int = Field(ge=1, description="Текущая страница")
     page_size: int = Field(ge=1, description="Количество элементов на странице")
@@ -146,7 +146,7 @@ class CartItem(BaseModel):
 class CartResponse(BaseModel):
     """Полная информация о корзине пользователя."""
     user_id: int = Field(..., description="ID пользователя")
-    items: List[CartItem] = Field(..., description="Содержимое корзины")
+    items: list[CartItem] = Field(..., description="Содержимое корзины")
     total_quantity: int = Field(..., ge=0, description="Общее количество товаров в корзине")
     total_price: Decimal = Field(..., ge=0, description="Общая стоимость товаров в корзине")
 
@@ -160,7 +160,7 @@ class OrderItem(BaseModel):
     quantity: int = Field(..., ge=1, description="Количество")
     unit_price: Decimal = Field(..., ge=0, description="Цена за единицу товара на момент покупки")
     total_price: Decimal = Field(..., ge=0, description="Полная стоимость позиции")
-    product: ProductResponse | None = Field(..., description="Полная информация о товаре")
+    product: ProductResponse | None = Field(None, description="Полная информация о товаре")
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -172,14 +172,14 @@ class OrderResponse(BaseModel):
     total_amount: Decimal = Field(..., ge=0, description="Общая стоимость заказа")
     created_at: datetime = Field(..., description="Дата создания заказа")
     updated_at: datetime = Field(..., description="Дата обновления заказа")
-    items: List[OrderItem] = Field(..., description="Список товаров в заказе")
+    items: list[OrderItem] = Field(default_factory=list, description="Список товаров в заказе")
 
     model_config = ConfigDict(from_attributes=True)
 
 
 class OrderList(BaseModel):
     '''Модель для списка заказов'''
-    items: List[OrderResponse] = Field(..., description="Заказы на текущей странице")
+    items: list[OrderResponse] = Field(..., description="Заказы на текущей странице")
     total: int = Field(ge=0, description="Общее количество заказов")
     page: int = Field(ge=1, description="Текущая страница")
     page_size: int = Field(ge=1, description="Количество элементов на странице")
