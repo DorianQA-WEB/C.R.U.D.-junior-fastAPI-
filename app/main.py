@@ -41,7 +41,7 @@ def call_background_task(message):
 
 
 @app.get("/")
-async def roots(message: str, background_tasks: BackgroundTasks):
+async def root(message: str, background_tasks: BackgroundTasks):
     background_tasks.add_task(call_background_task, message)
     return {'message': 'Hello, world!'}
 
