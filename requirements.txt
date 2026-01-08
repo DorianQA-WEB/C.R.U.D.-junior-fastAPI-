@@ -13,3 +13,4 @@ redis==7.1.0
 passlib==1.7.4
 python-dotenv==1.2.1
 pydantic-settings==2.12.0
+aiofiles==25.1.0
