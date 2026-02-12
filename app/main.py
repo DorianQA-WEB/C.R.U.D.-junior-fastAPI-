@@ -1,4 +1,6 @@
-from fastapi import FastAPI, BackgroundTasks
+from fastapi import FastAPI, BackgroundTasks, HTTPException
+from starlette.requests import Request
+from loguru import logger
 from app.routers import categories
 from app.routers import products
 from app.routers import users
@@ -85,6 +87,21 @@ def call_background_task(message):
     print(f'Background task: called!')
     print(message)
 
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    start_time = time.time()
+    response = await call_next(request)
+    process_time = time.time() - start_time * 1000
+    formated_process_time = f"{process_time:.2f}"
+
+    # Используем логгер loguru
+    logger.info(
+        f"request_path={request.url.path} "
+        f"method={request.method} "
+        f"status_code={response.status_code} "
+        f"process_time={formated_process_time}"
+    )
+    return response
 
 @app.get("/")
 async def read_root(message: str, background_tasks: BackgroundTasks):
@@ -98,13 +115,4 @@ async def read_root(message: str, background_tasks: BackgroundTasks):
         }
     return {"message": "Resources not available!"}
 
-
-# Корневой эндпоинт для проверки
-# @app.get("/")
-# async def root():
-#     """
-#     Корневой маршрут, подтверждающий, что API работает.
-#     """
-#     return {"message": "Добро пожаловать в API интернет-магазина!"}
-#
 

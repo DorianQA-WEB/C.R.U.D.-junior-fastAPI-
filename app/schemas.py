@@ -80,6 +80,7 @@ class ProductResponse(BaseModel):
 
 
 class UserCreate(BaseModel):
+    name: str = Field(min_length=4, description="Имя пользователя (минимум 4 символа)")
     email: EmailStr = Field(description="Email пользователя")
     password: str = Field(min_length=8, description="Пароль (минимум 8 символов)")
     role: str = Field(default="buyer", pattern="^(buyer|seller)$", description="Роль: 'buyer' или 'seller'")

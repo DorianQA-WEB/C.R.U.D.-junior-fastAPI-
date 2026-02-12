@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
-
+from loguru import logger
 from app.config import SECRET_KEY, ALGORITHM
 from app.models.users import User as UserModel
 from app.schemas import UserCreate, UserResponse
@@ -17,6 +17,14 @@ async def create_user(user: UserCreate, db: AsyncSession = Depends(get_async_db)
     """
     Регистрирует нового пользователя с ролью 'buyer' или 'seller'.
     """
+    logger.info(f"Попытка создать пользователя {user.name}")
+    if len(user.name) < 3:
+        logger.warning(f"Имя пользователя слишком короткое: {user.name}")
+        # Можно также передать ошибку в лог, если нужно более детальное логирование ошибок
+        logger.error(f"Имя пользователя слишком короткое: {user.name}")
+        raise HTTPException(
+            status_code=400, detail="Имя пользователя слишком короткое"
+        )
     # Проверка уникальности email
     result = await db.scalars(select(UserModel).where(UserModel.email == user.email))
     if result.first():
@@ -31,6 +39,7 @@ async def create_user(user: UserCreate, db: AsyncSession = Depends(get_async_db)
     # Добавление в сессию и сохранение в базе
     db.add(db_user)
     await db.commit()
+    logger.info(f"Пользователь {user.name} успешно создан")
     return db_user
 
 

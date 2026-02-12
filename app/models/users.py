@@ -9,6 +9,7 @@ if TYPE_CHECKING:
 class User(Base):
     __tablename__ = "users"
 
+    name: Mapped[str] = mapped_column(String, nullable=False)
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     email: Mapped[str] = mapped_column(String, unique=True, index=True, nullable=False)
     hashed_password: Mapped[str] = mapped_column(String, nullable=False)
