@@ -1,4 +1,4 @@
-from fastapi import FastAPI, BackgroundTasks, HTTPException
+from fastapi import FastAPI, BackgroundTasks, HTTPException, Request
 from starlette.requests import Request
 from loguru import logger
 from app.routers import categories
@@ -12,10 +12,17 @@ import time
 from celery import Celery
 from app.database import DATABASE_URL
 from contextlib import asynccontextmanager
+import sys
+
 
 # Глобальные переменные для хранения ресурсов
 db_connection_pool = DATABASE_URL
 ml_model = None
+
+logger.remove()
+
+logger.add(sys.stderr, format="{message}", serialize=True, level="INFO")
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -91,16 +98,18 @@ def call_background_task(message):
 async def log_requests(request: Request, call_next):
     start_time = time.time()
     response = await call_next(request)
-    process_time = time.time() - start_time * 1000
-    formated_process_time = f"{process_time:.2f}"
+    process_time = (time.time() - start_time) * 1000
+
 
     # Используем логгер loguru
-    logger.info(
-        f"request_path={request.url.path} "
-        f"method={request.method} "
-        f"status_code={response.status_code} "
-        f"process_time={formated_process_time}"
-    )
+    logger.info({
+        "event": "request",
+        "request_path": str(request.url.path),
+        # URL может быть сложным объектом, лучше преобразовать в строку
+        "method": request.method,
+        "status_code": response.status_code,
+        "process_time_ms": f"{process_time:.2f}"
+    })
     return response
 
 @app.get("/")
