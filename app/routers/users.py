@@ -19,11 +19,14 @@ async def create_user(user: UserCreate, db: AsyncSession = Depends(get_async_db)
     """
     logger.info(f"Попытка создать пользователя {user.name}")
     if len(user.name) < 3:
-        logger.warning(f"Имя пользователя слишком короткое: {user.name}")
+        logger.warning({"event": "user_creation_attempt",
+                        "username": user.name,
+                        "reason": "too_short"})
         # Можно также передать ошибку в лог, если нужно более детальное логирование ошибок
         logger.error(f"Имя пользователя слишком короткое: {user.name}")
         raise HTTPException(
-            status_code=400, detail="Имя пользователя слишком короткое"
+            status_code=400,
+            detail="Имя пользователя слишком короткое"
         )
     # Проверка уникальности email
     result = await db.scalars(select(UserModel).where(UserModel.email == user.email))
